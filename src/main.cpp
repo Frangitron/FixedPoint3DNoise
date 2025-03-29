@@ -4,6 +4,8 @@
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_sdlrenderer3.h>
 
+#include "Gradient.h"
+
 
 int main(int argc, char* argv[]) {
     // Initialize SDL3
@@ -26,6 +28,9 @@ int main(int argc, char* argv[]) {
         SDL_DestroyWindow(window);
         return -1;
     }
+
+    // Gradient
+    Gradient gradient(renderer, 512, 512);
 
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -63,8 +68,14 @@ int main(int argc, char* argv[]) {
 
         // Render the ImGui UI
         ImGui::Render();
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Clear the screen to black
         SDL_RenderClear(renderer);
+
+        // Render Gradient
+        int window_width, window_height;
+        SDL_GetWindowSize(window, &window_width, &window_height);
+        gradient.Render(window_width, window_height);
 
         // Pass the viewport size as the second argument (e.g., nullptr if not required)
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
