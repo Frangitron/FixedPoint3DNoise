@@ -5,26 +5,37 @@
 #include <cstdio>
 #include <SDL3/SDL.h>
 
+#include "Noise.hpp"
+#include "FastNoiseLite.h"
+
 
 class NoiseFrame {
 public:
     NoiseFrame(SDL_Renderer* renderer, int width, int height)
-        : renderer_(renderer), width_(width), height_(height), texture_(nullptr) {
+        : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(3156) {
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
         if (!texture_) {
             printf("Failed to create gradient texture: %s\n", SDL_GetError());
             return;
         }
+
+        noiseFast_.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
     }
 
     void PixelAt(const int x, const int y, Uint32* pixel) const {
+        int32_t z = static_cast<int32_t>(SDL_GetTicks() / 10);
 
-        // Calculate gradient color
-        Uint8 r = (Uint8)((float)x / width_ * 255.0f); // Horizontal red gradient
-        Uint8 g = (Uint8)((float)y / height_ * 255.0f); // Vertical green gradient
-        Uint8 b = 255 - static_cast<Uint8>(cos(static_cast<float>(SDL_GetTicks()) / 1000.0) * 128 + 128);
-        Uint8 a = 255;                                  // Fully opaque
+        //int32_t noiseValue = noiseFixed_.getValue(x, y, z) * 255 / Noise::FIXED_SCALE;
+        auto noiseValue = noiseFast_.GetNoise(
+            static_cast<float>(x),
+            static_cast<float>(y),
+            static_cast<float>(z)
+        ) * 128 + 128;
 
+        Uint8 r = static_cast<Uint8>(noiseValue);
+        Uint8 g = static_cast<Uint8>(noiseValue);
+        Uint8 b = static_cast<Uint8>(noiseValue);
+        Uint8 a = 255;
         *pixel = (r << 24) | (g << 16) | (b << 8) | a;
     }
 
@@ -57,6 +68,8 @@ public:
     }
 
 private:
+    FastNoiseLite noiseFast_;
+    Noise noiseFixed_;
     SDL_Renderer* renderer_;
     int width_;
     int height_;
