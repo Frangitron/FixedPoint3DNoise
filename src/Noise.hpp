@@ -3,10 +3,17 @@
 
 #include <cstdint>
 #include <array>
-#include <cmath>
 
 class Noise {
+
 public:
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+        int32_t z;
+    } Vector3;
+
     // Fixed-point scaling factor to adjust precision.
     static constexpr int FIXED_SCALE = 1024;
 
@@ -29,74 +36,111 @@ public:
         }
     }
 
+    int32_t dotGridGradient(const int32_t X, const int32_t Y, const int32_t Z, const int32_t x, const int32_t y, const int32_t z) const {
+        auto [gx, gy, gz] = randomGradient(X, Y, Z);
+
+        int32_t dx = x - X;
+        int32_t dy = y - Y;
+        int32_t dz = z - Z;
+
+        int32_t d = (dx * gx) + (dy * gy) + (dz * gz);
+        return d / (FIXED_SCALE * FIXED_SCALE);
+    }
+
     // Calculate 3D fixed-point noise value.
-    int32_t getValue(int32_t x, int32_t y, int32_t z) const {
-        // Convert to fixed-point space (scaled int coordinates).
-        int32_t fx = x / FIXED_SCALE;
-        int32_t fy = y / FIXED_SCALE;
-        int32_t fz = z / FIXED_SCALE;
+    Vector3 getValue(int32_t x, int32_t y, int32_t z) const {
+        int32_t X0 = (x / FIXED_SCALE) * FIXED_SCALE;
+        int32_t Y0 = (y / FIXED_SCALE) * FIXED_SCALE;
+        int32_t Z0 = (z / FIXED_SCALE) * FIXED_SCALE;
 
-        // Get the integer parts.
-        int32_t X = fx & 255;
-        int32_t Y = fy & 255;
-        int32_t Z = fz & 255;
+        int32_t X1 = x + FIXED_SCALE;
+        int32_t Y1 = y + FIXED_SCALE;
+        int32_t Z1 = z + FIXED_SCALE;
 
-        // Get the fractional parts as fixed-point (scaled [0, FIXED_SCALE)).
-        fx = x % FIXED_SCALE;
-        fy = y % FIXED_SCALE;
-        fz = z % FIXED_SCALE;
+        int32_t wx = x - X0;
+        int32_t wy = y - Y0;
+        int32_t wz = z - Z0;
 
-        // Fade curves for interpolation.
-        int32_t u = fade(fx);
-        int32_t v = fade(fy);
-        int32_t w = fade(fz);
+        // lower top two corners
+        int32_t n0 = dotGridGradient(X0, Y0, Z0, x, y, z);
+        int32_t n1 = dotGridGradient(X1, Y0, Z0, x, y, z);
+        int32_t lt = lerp(n0, n1, wx);
 
-        // Hash coordinates of the cube corners.
-        uint8_t A = permutation[X] + Y;
-        uint8_t AA = permutation[A] + Z;
-        uint8_t AB = permutation[A + 1] + Z;
-        uint8_t B = permutation[X + 1] + Y;
-        uint8_t BA = permutation[B] + Z;
-        uint8_t BB = permutation[B + 1] + Z;
+        // lower bottom two corners
+        n0 = dotGridGradient(X0, Y1, Z0, x, y, z);
+        n1 = dotGridGradient(X1, Y1, Z0, x, y, z);
+        int32_t lb = lerp(n0, n1, wx);
+        int32_t l = lerp(lt, lb, wy);
 
-        // Add blended results from the corners.
-        return lerp(w,
-                    lerp(v,
-                         lerp(u, grad(permutation[AA], fx, fy, fz),
-                              grad(permutation[BA], fx - FIXED_SCALE, fy, fz)),
-                         lerp(u, grad(permutation[AB], fx, fy - FIXED_SCALE, fz),
-                              grad(permutation[BB], fx - FIXED_SCALE, fy - FIXED_SCALE, fz))),
-                    lerp(v,
-                         lerp(u, grad(permutation[AA + 1], fx, fy, fz - FIXED_SCALE),
-                              grad(permutation[BA + 1], fx - FIXED_SCALE, fy, fz - FIXED_SCALE)),
-                         lerp(u, grad(permutation[AB + 1], fx, fy - FIXED_SCALE, fz - FIXED_SCALE),
-                              grad(permutation[BB + 1], fx - FIXED_SCALE, fy - FIXED_SCALE, fz - FIXED_SCALE))));
+        // upper top two corners
+        n0 = dotGridGradient(X0, Y0, Z1, x, y, z);
+        n1 = dotGridGradient(X1, Y0, Z1, x, y, z);
+        int32_t ut = lerp(n0, n1, wx);
+
+        // upper bottom two corners
+        n0 = dotGridGradient(X0, Y1, Z1, x, y, z);
+        n1 = dotGridGradient(X1, Y1, Z1, x, y, z);
+        int32_t ub = lerp(n0, n1, wx);
+        int32_t u = lerp(ut, ub, wy);
+
+        int32_t value = lerp(l, u, wz);
+        return {value, value, value};
+    }
+
+    Vector3 randomGradient(int32_t x, int32_t y, int32_t z) const {
+        int32_t ix = x / FIXED_SCALE;
+        int32_t iy = y / FIXED_SCALE;
+        int32_t iz = z / FIXED_SCALE;
+        // Compute a pseudo-random seed from the input coordinates.
+        uint32_t seed = permutation[(ix + permutation[(iy + permutation[iz & 255]) & 255]) & 255];
+
+        // Generate pseudo-random fixed-point components in [-FIXED_SCALE, FIXED_SCALE].
+        int32_t gx = static_cast<int32_t>((seed ^ 0xF45325) % (2 * FIXED_SCALE + 1)) - FIXED_SCALE;
+        int32_t gy = static_cast<int32_t>((seed ^ 0xA7463B) % (2 * FIXED_SCALE + 1)) - FIXED_SCALE;
+        int32_t gz = static_cast<int32_t>((seed ^ 0xC83D21) % (2 * FIXED_SCALE + 1)) - FIXED_SCALE;
+
+        // Normalize the gradient vector to have a unit length in fixed-point precision.
+        int64_t lengthSquared = static_cast<int64_t>(gx) * gx +
+                                static_cast<int64_t>(gy) * gy +
+                                static_cast<int64_t>(gz) * gz;
+
+        if (lengthSquared > 0) {
+            int64_t scaleFactor = (static_cast<int64_t>(FIXED_SCALE) * FIXED_SCALE) / isqrt(lengthSquared);
+            gx = (gx * scaleFactor);
+            gy = (gy * scaleFactor);
+            gz = (gz * scaleFactor);
+        }
+
+        return { gx, gy, gz };
+    }
+
+    // Fixed-point integer square root function.
+    int32_t isqrt(int64_t value) const {
+        int64_t result = 0;
+        int64_t bit = 1LL << 62; // The second-to-top bit is set.
+
+        // The input value must be non-negative (handle appropriately).
+        while (bit > value) {
+            bit >>= 2;
+        }
+        while (bit != 0) {
+            if (value >= result + bit) {
+                value -= result + bit;
+                result = (result >> 1) + bit;
+            } else {
+                result >>= 1;
+            }
+            bit >>= 2;
+        }
+        return static_cast<int32_t>(result);
+    }
+
+    int32_t lerp(int32_t a, int32_t b, int32_t weight) const {
+        return a - (a * weight / FIXED_SCALE) + (b * weight / FIXED_SCALE);
     }
 
 private:
-    // Permutation table for pseudo-random gradients.
     std::array<uint8_t, 512> permutation;
-
-    // Fade function (scaled with FIXED_SCALE for fixed-point).
-    static int32_t fade(int32_t t) {
-        int32_t scaled_t = t / FIXED_SCALE;  // Bring t into 0 to 1 [fixed-represented].
-        return scaled_t * scaled_t * (3 * FIXED_SCALE - (2 * scaled_t));
-    }
-
-    // Linear interpolator (lerp).
-    static int32_t lerp(int32_t t, int32_t a, int32_t b) {
-        return a + ((b - a) * t) / FIXED_SCALE;
-    }
-
-    // Gradient function for 3D noise.
-    static int32_t grad(int32_t hash, int32_t x, int32_t y, int32_t z) {
-        int32_t h = hash & 15;              // Drop top 4 bits for 16 possible outcomes.
-        int32_t u = h < 8 ? x : y;          // First gradient component is either x or y.
-        int32_t v = h < 4 ? y : (h == 12 || h == 14 ? x : z);  // Second component may be x, y, or z.
-
-        // Depending on the gradient direction, return adjusted u/v.
-        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-    }
 };
 
 #endif //FIRMWARE_REWRITE_NOISE_HPP
