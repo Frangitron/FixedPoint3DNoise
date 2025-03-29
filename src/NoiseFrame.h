@@ -17,24 +17,24 @@ public:
             printf("Failed to create gradient texture: %s\n", SDL_GetError());
             return;
         }
-
-        Update();
     }
 
     void PixelAt(const int x, const int y, Uint32* pixel) const {
         const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
-        //const int32_t z = 0;
 
         int32_t noise = noiseFixed_.getValue(x, y, z);
 
-        auto r = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::SCALE));
-        auto g = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::SCALE));
-        auto b = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::SCALE));
+        auto r = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::Scale));
+        auto g = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::Scale));
+        auto b = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::Scale));
         Uint8 a = 255;
         *pixel = (r << 24) | (g << 16) | (b << 8) | a;
     }
 
-    void Update() const {
+    void Update(int32_t min, int32_t max) {
+        noiseFixed_.setMin(min);
+        noiseFixed_.setMax(max);
+
         void* pixels = nullptr;
         int pitch = 0;
         if (SDL_LockTexture(texture_, nullptr, &pixels, &pitch)) {
@@ -43,8 +43,8 @@ public:
                     // Cast to Uint32 pointer
                     Uint32* pixel_ptr = (Uint32*)((Uint8*)pixels + y * pitch) + x;
                     PixelAt(
-                        x * FixedPointNoiseSampler::SCALE / width_,
-                        y * FixedPointNoiseSampler::SCALE / height_,
+                        x * FixedPointNoiseSampler::Scale / width_,
+                        y * FixedPointNoiseSampler::Scale / height_,
                         pixel_ptr
                     );
                 }
@@ -56,7 +56,6 @@ public:
     }
 
     [[nodiscard]] SDL_Texture* GetTexture() const {
-        Update();
         return texture_;
     }
 

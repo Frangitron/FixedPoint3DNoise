@@ -46,6 +46,10 @@ int main(int argc, char* argv[]) {
     // Main application loop
     bool running = true;
     SDL_Event event;
+
+    int32_t min = 0;
+    int32_t max = FixedPointNoiseSampler::Scale;
+
     while (running) {
 
         //
@@ -67,9 +71,12 @@ int main(int argc, char* argv[]) {
 
         int window_width, window_height;
         SDL_GetWindowSize(window, &window_width, &window_height);
+        noiseFrame.Update(min, max);
         SDL_Texture* noiseTexture = noiseFrame.GetTexture();
 
         ImGui::Image(reinterpret_cast<ImTextureID>(noiseTexture), ImVec2(512, 512));
+        ImGui::SliderInt("Min", &min, 0, FixedPointNoiseSampler::Scale),
+        ImGui::SliderInt("Max", &max, 0, FixedPointNoiseSampler::Scale),
 
         ImGui::End();
         ImGui::Render();

@@ -16,7 +16,7 @@ public:
     } Vector3;
 
     // Fixed-point scaling factor to adjust precision.
-    static constexpr int SCALE = 1024;
+    static constexpr int Scale = 1024;
 
     explicit FixedPointNoiseSampler(uint32_t seed = 0) {
         // Initialize permutation array with a simple pseudo-random sequence.
@@ -49,18 +49,18 @@ public:
             static_cast<int64_t>(dy) * gy +
             static_cast<int64_t>(dz) * gz;
 
-        return static_cast<int32_t>(dot / SCALE);
+        return static_cast<int32_t>(dot / Scale);
     }
 
     // Calculate 3D fixed-point noise value.
     int32_t getValue(int32_t x, int32_t y, int32_t z) const {
-        int32_t X0 = (x / SCALE) * SCALE;
-        int32_t Y0 = (y / SCALE) * SCALE;
-        int32_t Z0 = (z / SCALE) * SCALE;
+        int32_t X0 = (x / Scale) * Scale;
+        int32_t Y0 = (y / Scale) * Scale;
+        int32_t Z0 = (z / Scale) * Scale;
 
-        int32_t X1 = X0 + SCALE;
-        int32_t Y1 = Y0 + SCALE;
-        int32_t Z1 = Z0 + SCALE;
+        int32_t X1 = X0 + Scale;
+        int32_t Y1 = Y0 + Scale;
+        int32_t Z1 = Z0 + Scale;
 
         int32_t wx = x - X0;
         int32_t wy = y - Y0;
@@ -99,24 +99,24 @@ public:
     }
 
     Vector3 randomGradient(const int32_t x, const int32_t y, const int32_t z) const {
-        const int32_t ix = x / SCALE;
-        const int32_t iy = y / SCALE;
-        const int32_t iz = z / SCALE;
+        const int32_t ix = x / Scale;
+        const int32_t iy = y / Scale;
+        const int32_t iz = z / Scale;
 
         // Compute a pseudo-random seed from the input coordinates.
         const uint32_t seed = permutation[(ix + permutation[(iy + permutation[iz & 255]) & 255]) & 255];
 
         // Generate pseudo-random fixed-point components in [-FIXED_SCALE, FIXED_SCALE].
-        int32_t gx = static_cast<int32_t>((seed ^ 0xF45325) % (2 * SCALE + 1)) - SCALE;
-        int32_t gy = static_cast<int32_t>((seed ^ 0xA7463B) % (2 * SCALE + 1)) - SCALE;
-        int32_t gz = static_cast<int32_t>((seed ^ 0xC83D21) % (2 * SCALE + 1)) - SCALE;
+        int32_t gx = static_cast<int32_t>((seed ^ 0xF45325) % (2 * Scale + 1)) - Scale;
+        int32_t gy = static_cast<int32_t>((seed ^ 0xA7463B) % (2 * Scale + 1)) - Scale;
+        int32_t gz = static_cast<int32_t>((seed ^ 0xC83D21) % (2 * Scale + 1)) - Scale;
 
         // Normalize the gradient vector to have a unit length in fixed-point precision.
         if (const int32_t lengthSquared = gx * gx + gy * gy + gz * gz; lengthSquared > 0) {
             const int32_t length = sqrt_i32(lengthSquared);
-            gx = SCALE * gx / length;
-            gy = SCALE * gy / length;
-            gz = SCALE * gz / length;
+            gx = Scale * gx / length;
+            gy = Scale * gy / length;
+            gz = Scale * gz / length;
         }
 
         return { gx, gy, gz };
@@ -140,7 +140,7 @@ public:
     }
 
     static int32_t linearInterpolate(const int32_t a, const int32_t b, const int32_t w) {
-        return a - (a * w / SCALE) + (b * w / SCALE);
+        return a - (a * w / Scale) + (b * w / Scale);
         // Cubic ?
         // (b - a) * (3.0 - w * 2.0) * w * w + a
     }
@@ -152,16 +152,15 @@ private:
 
 class Noise {
 public:
-    Noise(uint32_t seed, int scale_, int octaves_, int min_ = 0, int max_ = FixedPointNoiseSampler::SCALE):
+    Noise(uint32_t seed, int scale_, int octaves_, int min_ = 0, int max_ = FixedPointNoiseSampler::Scale):
         sampler(seed), scale(scale_), octaves(octaves_), min(min_), max(max_) {}
 
+    void setMin(int32_t min_) { min = min_; }
+    void setMax(int32_t max_) { max = max_; }
+    void setScale(int32_t scale_) { scale = scale_; }
+    void setOctaves(int32_t octaves_) { octaves = octaves_; }
+
     int32_t getValue(int32_t x, int32_t y, int32_t z) const {
-
-        int32_t scale = 8;
-        int32_t octaves = 1;
-        int32_t min = 0;
-        int32_t max = FixedPointNoiseSampler::SCALE;
-
         int32_t noise = 0;
         for (int i = 0; i < octaves; ++i) {
             auto octave = static_cast<int32_t>(pow(2, i));
@@ -174,9 +173,16 @@ public:
             noise += noiseSample / octave;
         }
 
-        noise = (noise + FixedPointNoiseSampler::SCALE) / 2;
+        noise = (noise + FixedPointNoiseSampler::Scale) / 2;
 
-        return  noise;
+        if (noise <= min) {
+            return 0;
+        }
+        if (noise >= max) {
+            return FixedPointNoiseSampler::Scale;
+        }
+
+        return  noise * (max - min) / FixedPointNoiseSampler::Scale + min;
     }
 
 private:
