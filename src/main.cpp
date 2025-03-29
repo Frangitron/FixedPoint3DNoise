@@ -61,21 +61,27 @@ int main(int argc, char* argv[]) {
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui::NewFrame();
 
+        //
         // ImGui Window with "Hello, World!"
-        ImGui::Begin("Hello, World!");
-        ImGui::Text("This is a basic SDL3 + ImGui setup!");
+        ImGui::Begin("Gradient Viewer");
+
+        // Render Gradient
+        int window_width, window_height;
+        SDL_GetWindowSize(window, &window_width, &window_height);
+        SDL_Texture* gradientTexture = gradient.GetTexture();
+
+        // Display the gradient in ImGui using ImGui::Image
+        ImGui::Image(reinterpret_cast<ImTextureID>(gradientTexture), ImVec2(512, 512));
+
         ImGui::End();
 
         // Render the ImGui UI
         ImGui::Render();
 
+        //
+        // SDL Background
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Clear the screen to black
         SDL_RenderClear(renderer);
-
-        // Render Gradient
-        int window_width, window_height;
-        SDL_GetWindowSize(window, &window_width, &window_height);
-        gradient.Render(window_width, window_height);
 
         // Pass the viewport size as the second argument (e.g., nullptr if not required)
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
