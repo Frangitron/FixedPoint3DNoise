@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    NoiseFrame noiseFrame(renderer, 512, 512);
+    NoiseFrame noiseFrame(renderer, 256, 256);
 
     // Initialize ImGui
     IMGUI_CHECKVERSION();

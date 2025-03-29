@@ -1,7 +1,6 @@
 #ifndef NOISE_FRAME_H
 #define NOISE_FRAME_H
 
-#include <cmath>
 #include <cstdio>
 #include <SDL3/SDL.h>
 
@@ -11,7 +10,7 @@
 
 class NoiseFrame {
 public:
-    NoiseFrame(SDL_Renderer* renderer, int width, int height)
+    NoiseFrame(SDL_Renderer* renderer, const int width, const int height)
         : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(3156) {
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
         if (!texture_) {
@@ -23,15 +22,20 @@ public:
     }
 
     void PixelAt(const int x, const int y, Uint32* pixel) const {
-        int32_t z = static_cast<int32_t>(SDL_GetTicks() / 10);
+        const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
 
-        //int32_t noiseValue = noiseFixed_.getValue(x, y, z) * 255 / Noise::FIXED_SCALE;
-        auto noiseValue = noiseFast_.GetNoise(
-            static_cast<float>(x),
-            static_cast<float>(y),
-            static_cast<float>(z)
-        ) * 128 + 128;
-
+        int32_t noiseValue = 0;
+        if (false) {
+            noiseValue = noiseFixed_.getValue(x, y, z) * 255 / Noise::FIXED_SCALE;
+        }
+        else {
+            noiseValue = static_cast<int32_t>(noiseFast_.GetNoise(
+                static_cast<float>(x),
+                static_cast<float>(y),
+                static_cast<float>(z)
+            ) * 255);
+        }
+        noiseValue = noiseValue / 2 + 128;
         Uint8 r = static_cast<Uint8>(noiseValue);
         Uint8 g = static_cast<Uint8>(noiseValue);
         Uint8 b = static_cast<Uint8>(noiseValue);
