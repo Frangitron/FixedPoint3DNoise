@@ -10,7 +10,7 @@
 class NoiseFrame {
 public:
     NoiseFrame(SDL_Renderer* renderer, const int width, const int height)
-        : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(0, 8, 2) {
+        : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(0, 16, 2) {
 
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
         if (!texture_) {
@@ -19,7 +19,7 @@ public:
         }
     }
 
-    void PixelAt(const int x, const int y, Uint32* pixel) const {
+    void PixelAt(const int x, const int y, Uint32* pixel) {
         const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
 
         int32_t noise = noiseFixed_.getValue(x, y, z);
@@ -54,6 +54,9 @@ public:
             printf("Failed to lock gradient texture: %s\n", SDL_GetError());
         }
     }
+
+    int32_t mmin() const { return noiseFixed_.getMin(); }
+    int32_t mmax() const { return noiseFixed_.getMax(); }
 
     [[nodiscard]] SDL_Texture* GetTexture() const {
         return texture_;

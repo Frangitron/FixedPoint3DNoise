@@ -75,8 +75,13 @@ int main(int argc, char* argv[]) {
         SDL_Texture* noiseTexture = noiseFrame.GetTexture();
 
         ImGui::Image(reinterpret_cast<ImTextureID>(noiseTexture), ImVec2(512, 512));
-        ImGui::SliderInt("Min", &min, 0, FixedPointNoiseSampler::Scale),
-        ImGui::SliderInt("Max", &max, 0, FixedPointNoiseSampler::Scale),
+        ImGui::SliderInt("Min", &min, 0, FixedPointNoiseSampler::Scale);
+        ImGui::SliderInt("Max", &max, 0, FixedPointNoiseSampler::Scale);
+
+        int32_t mmin = noiseFrame.mmin();
+        int32_t mmax = noiseFrame.mmax();
+
+        ImGui::Text("MMin: %d - MMax: %d", mmin, mmax);
 
         ImGui::End();
         ImGui::Render();

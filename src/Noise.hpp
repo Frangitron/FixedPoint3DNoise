@@ -141,8 +141,6 @@ public:
 
     static int32_t linearInterpolate(const int32_t a, const int32_t b, const int32_t w) {
         return a - (a * w / Scale) + (b * w / Scale);
-        // Cubic ?
-        // (b - a) * (3.0 - w * 2.0) * w * w + a
     }
 
 private:
@@ -160,7 +158,7 @@ public:
     void setScale(int32_t scale_) { scale = scale_; }
     void setOctaves(int32_t octaves_) { octaves = octaves_; }
 
-    int32_t getValue(int32_t x, int32_t y, int32_t z) const {
+    int32_t getValue(int32_t x, int32_t y, int32_t z) {
         int32_t noise = 0;
         for (int i = 0; i < octaves; ++i) {
             auto octave = static_cast<int32_t>(pow(2, i));
@@ -173,6 +171,7 @@ public:
             noise += noiseSample / octave;
         }
 
+        noise *= 8; // TODO this is not normal at all
         noise = (noise + FixedPointNoiseSampler::Scale) / 2;
 
         if (noise <= min) {
@@ -182,8 +181,17 @@ public:
             return FixedPointNoiseSampler::Scale;
         }
 
-        return  noise * (max - min) / FixedPointNoiseSampler::Scale + min;
+        noise = (noise - min) *  FixedPointNoiseSampler::Scale / (FixedPointNoiseSampler::Scale - min);
+
+        if (noise < mmin) { mmin = noise; }
+        if (noise > mmax) { mmax = noise; }
+
+        return noise;
     }
+
+    // Used to determine "8" weird factor that will be investigated later
+    int32_t getMin() const { return mmin; }
+    int32_t getMax() const { return mmax; }
 
 private:
     int scale;
@@ -191,6 +199,8 @@ private:
     int min;
     int max;
     FixedPointNoiseSampler sampler;
+    int32_t mmax = 0;
+    int32_t mmin = 0;
 };
 
 #endif //FIRMWARE_REWRITE_NOISE_HPP
