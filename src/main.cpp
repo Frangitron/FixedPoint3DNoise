@@ -4,7 +4,7 @@
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_sdlrenderer3.h>
 
-#include "Gradient.h"
+#include "NoiseFrame.h"
 
 
 int main(int argc, char* argv[]) {
@@ -29,8 +29,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Gradient
-    Gradient gradient(renderer, 512, 512);
+    NoiseFrame noiseFrame(renderer, 512, 512);
 
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -48,42 +47,37 @@ int main(int argc, char* argv[]) {
     bool running = true;
     SDL_Event event;
     while (running) {
+
+        //
         // Poll events
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) { // Handle quit event
+            if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             }
-            ImGui_ImplSDL3_ProcessEvent(&event); // Pass events to ImGui
+            ImGui_ImplSDL3_ProcessEvent(&event);
         }
 
-        // Start rendering a new ImGui frame
+        //
+        // ImGui Noise Frame
         ImGui_ImplSDL3_NewFrame();
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui::NewFrame();
 
-        //
-        // ImGui Window with "Hello, World!"
-        ImGui::Begin("Gradient Viewer");
+        ImGui::Begin("Noise");
 
-        // Render Gradient
         int window_width, window_height;
         SDL_GetWindowSize(window, &window_width, &window_height);
-        SDL_Texture* gradientTexture = gradient.GetTexture();
+        SDL_Texture* noiseTexture = noiseFrame.GetTexture();
 
-        // Display the gradient in ImGui using ImGui::Image
-        ImGui::Image(reinterpret_cast<ImTextureID>(gradientTexture), ImVec2(512, 512));
+        ImGui::Image(reinterpret_cast<ImTextureID>(noiseTexture), ImVec2(512, 512));
 
         ImGui::End();
-
-        // Render the ImGui UI
         ImGui::Render();
 
         //
-        // SDL Background
+        // SDL Render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Clear the screen to black
         SDL_RenderClear(renderer);
-
-        // Pass the viewport size as the second argument (e.g., nullptr if not required)
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer); // Present the frame
     }

@@ -1,14 +1,14 @@
-#ifndef GRADIENT_H
-#define GRADIENT_H
+#ifndef NOISE_FRAME_H
+#define NOISE_FRAME_H
 
 #include <cmath>
 #include <cstdio>
 #include <SDL3/SDL.h>
 
 
-class Gradient {
+class NoiseFrame {
 public:
-    Gradient(SDL_Renderer* renderer, int width, int height)
+    NoiseFrame(SDL_Renderer* renderer, int width, int height)
         : renderer_(renderer), width_(width), height_(height), texture_(nullptr) {
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
         if (!texture_) {
@@ -50,7 +50,7 @@ public:
         return texture_;
     }
 
-    ~Gradient() {
+    ~NoiseFrame() {
         if (texture_) {
             SDL_DestroyTexture(texture_);
         }
@@ -63,4 +63,4 @@ private:
     SDL_Texture* texture_;
 };
 
-#endif //GRADIENT_H
+#endif //NOISE_FRAME_H
