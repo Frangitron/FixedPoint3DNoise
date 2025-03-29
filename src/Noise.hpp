@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <array>
+#include <cstdio>
 
 class Noise {
 
@@ -43,56 +44,67 @@ public:
         int32_t dy = y - Y;
         int32_t dz = z - Z;
 
-        int32_t d = (dx * gx) + (dy * gy) + (dz * gz);
-        return d / (FIXED_SCALE * FIXED_SCALE);
+        const int64_t dot =
+            static_cast<int64_t>(dx) * gx +
+            static_cast<int64_t>(dy) * gy +
+            static_cast<int64_t>(dz) * gz;
+
+        return static_cast<int32_t>(dot / FIXED_SCALE);
     }
 
     // Calculate 3D fixed-point noise value.
-    Vector3 getValue(int32_t x, int32_t y, int32_t z) const {
+    int32_t getValue(int32_t x, int32_t y, int32_t z) const {
         int32_t X0 = (x / FIXED_SCALE) * FIXED_SCALE;
         int32_t Y0 = (y / FIXED_SCALE) * FIXED_SCALE;
         int32_t Z0 = (z / FIXED_SCALE) * FIXED_SCALE;
 
-        int32_t X1 = x + FIXED_SCALE;
-        int32_t Y1 = y + FIXED_SCALE;
-        int32_t Z1 = z + FIXED_SCALE;
+        int32_t X1 = X0 + FIXED_SCALE;
+        int32_t Y1 = Y0 + FIXED_SCALE;
+        int32_t Z1 = Z0 + FIXED_SCALE;
 
         int32_t wx = x - X0;
         int32_t wy = y - Y0;
         int32_t wz = z - Z0;
 
-        // lower top two corners
+        // lower top x 0 0
         int32_t n0 = dotGridGradient(X0, Y0, Z0, x, y, z);
         int32_t n1 = dotGridGradient(X1, Y0, Z0, x, y, z);
-        int32_t lt = lerp(n0, n1, wx);
+        const int32_t lt = lerp(n0, n1, wx);
 
-        // lower bottom two corners
+        // lower bottom x 1 0
         n0 = dotGridGradient(X0, Y1, Z0, x, y, z);
         n1 = dotGridGradient(X1, Y1, Z0, x, y, z);
-        int32_t lb = lerp(n0, n1, wx);
-        int32_t l = lerp(lt, lb, wy);
+        const int32_t lb = lerp(n0, n1, wx);
 
-        // upper top two corners
+        // lower x y 0
+        const int32_t l = lerp(lt, lb, wy);
+
+        // upper top x 0 1
         n0 = dotGridGradient(X0, Y0, Z1, x, y, z);
         n1 = dotGridGradient(X1, Y0, Z1, x, y, z);
-        int32_t ut = lerp(n0, n1, wx);
+        const int32_t ut = lerp(n0, n1, wx);
 
-        // upper bottom two corners
+        // upper bottom x 1 1
         n0 = dotGridGradient(X0, Y1, Z1, x, y, z);
         n1 = dotGridGradient(X1, Y1, Z1, x, y, z);
-        int32_t ub = lerp(n0, n1, wx);
-        int32_t u = lerp(ut, ub, wy);
+        const int32_t ub = lerp(n0, n1, wx);
 
-        int32_t value = lerp(l, u, wz);
-        return {value, value, value};
+        // upper x y 1
+        const int32_t u = lerp(ut, ub, wy);
+
+        // value
+        const int32_t value = lerp(l, u, wz);
+
+        return value;
     }
 
-    Vector3 randomGradient(int32_t x, int32_t y, int32_t z) const {
-        int32_t ix = x / FIXED_SCALE;
-        int32_t iy = y / FIXED_SCALE;
-        int32_t iz = z / FIXED_SCALE;
+    Vector3 randomGradient(const int32_t x, const int32_t y, const int32_t z) const {
+        const int32_t ix = x / FIXED_SCALE;
+        const int32_t iy = y / FIXED_SCALE;
+        const int32_t iz = z / FIXED_SCALE;
+
         // Compute a pseudo-random seed from the input coordinates.
-        uint32_t seed = permutation[(ix + permutation[(iy + permutation[iz & 255]) & 255]) & 255];
+        const uint32_t seed = permutation[(ix + permutation[(iy + permutation[iz & 255]) & 255]) & 255];
 
         // Generate pseudo-random fixed-point components in [-FIXED_SCALE, FIXED_SCALE].
         int32_t gx = static_cast<int32_t>((seed ^ 0xF45325) % (2 * FIXED_SCALE + 1)) - FIXED_SCALE;
@@ -100,42 +112,35 @@ public:
         int32_t gz = static_cast<int32_t>((seed ^ 0xC83D21) % (2 * FIXED_SCALE + 1)) - FIXED_SCALE;
 
         // Normalize the gradient vector to have a unit length in fixed-point precision.
-        int64_t lengthSquared = static_cast<int64_t>(gx) * gx +
-                                static_cast<int64_t>(gy) * gy +
-                                static_cast<int64_t>(gz) * gz;
-
-        if (lengthSquared > 0) {
-            int64_t scaleFactor = (static_cast<int64_t>(FIXED_SCALE) * FIXED_SCALE) / isqrt(lengthSquared);
-            gx = (gx * scaleFactor);
-            gy = (gy * scaleFactor);
-            gz = (gz * scaleFactor);
+        if (const int32_t lengthSquared = gx * gx + gy * gy + gz * gz; lengthSquared > 0) {
+            const int32_t length = sqrt_i32(lengthSquared);
+            gx = FIXED_SCALE * gx / length;
+            gy = FIXED_SCALE * gy / length;
+            gz = FIXED_SCALE * gz / length;
         }
 
         return { gx, gy, gz };
     }
 
     // Fixed-point integer square root function.
-    int32_t isqrt(int64_t value) const {
-        int64_t result = 0;
-        int64_t bit = 1LL << 62; // The second-to-top bit is set.
-
-        // The input value must be non-negative (handle appropriately).
-        while (bit > value) {
-            bit >>= 2;
-        }
-        while (bit != 0) {
-            if (value >= result + bit) {
-                value -= result + bit;
-                result = (result >> 1) + bit;
-            } else {
-                result >>= 1;
+    [[nodiscard]] static int32_t sqrt_i32(int32_t v) {
+        uint32_t b = 1<<30, q = 0, r = v;
+        while (b > r)
+            b >>= 2;
+        while( b > 0 ) {
+            const uint32_t t = q + b;
+            q >>= 1;
+            if( r >= t ) {
+                r -= t;
+                q += b;
             }
-            bit >>= 2;
+            b >>= 2;
         }
-        return static_cast<int32_t>(result);
+        return static_cast<int32_t>(q);
     }
 
-    int32_t lerp(int32_t a, int32_t b, int32_t weight) const {
+    static int32_t lerp(const int32_t a, const int32_t b, const int32_t weight) {
+        //  return (a1 - a0) * (3.0 - w * 2.0) * w * w + a0;  <- Cubic float
         return a - (a * weight / FIXED_SCALE) + (b * weight / FIXED_SCALE);
     }
 

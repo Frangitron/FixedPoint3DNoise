@@ -10,27 +10,40 @@
 class NoiseFrame {
 public:
     NoiseFrame(SDL_Renderer* renderer, const int width, const int height)
-        : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(0) {
+        : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(654) {
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
         if (!texture_) {
             printf("Failed to create gradient texture: %s\n", SDL_GetError());
             return;
         }
+        Update();
     }
 
     void PixelAt(const int x, const int y, Uint32* pixel) const {
         const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
         //const int32_t z = 0;
 
-        auto [gx, gy, gz] = noiseFixed_.getValue(
-            x * 8,
-            y * 8,
-            z * 8
-        );
+        int32_t scale = 100;
+        int32_t min = 0;
+        int32_t max = Noise::FIXED_SCALE;
 
-        auto r = static_cast<Uint8>((gx * 128) / Noise::FIXED_SCALE + 128);
-        auto g = static_cast<Uint8>((gy * 128) / Noise::FIXED_SCALE + 128);
-        auto b = static_cast<Uint8>((gz * 128) / Noise::FIXED_SCALE + 128);
+        int32_t noise = 0;
+        for (int i = 0; i < 3; ++i) {
+            auto octave = static_cast<int32_t>(pow(2, i));
+
+            auto noiseSample = noiseFixed_.getValue(
+                scale * x * octave,
+                scale * y * octave,
+                scale * z
+            );
+            noise += noiseSample / octave;
+        }
+
+        noise = (noise + Noise::FIXED_SCALE) / 2;
+
+        auto r = static_cast<Uint8>((noise * 255 / Noise::FIXED_SCALE));
+        auto g = static_cast<Uint8>((noise * 255 / Noise::FIXED_SCALE));
+        auto b = static_cast<Uint8>((noise * 255 / Noise::FIXED_SCALE));
         Uint8 a = 255;
         *pixel = (r << 24) | (g << 16) | (b << 8) | a;
     }
@@ -44,6 +57,8 @@ public:
                     // Cast to Uint32 pointer
                     Uint32* pixel_ptr = (Uint32*)((Uint8*)pixels + y * pitch) + x;
                     PixelAt(
+                        // (x * Noise::FIXED_SCALE),
+                        // (y * Noise::FIXED_SCALE),
                         (x * Noise::FIXED_SCALE) / width_,
                         (y * Noise::FIXED_SCALE) / height_,
                         pixel_ptr
