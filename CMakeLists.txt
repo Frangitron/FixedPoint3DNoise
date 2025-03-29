@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
-project(CodotakuCMakeRepo)
+project(FixedPointSimplex3DNoise)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -21,7 +21,7 @@ set(LIBS)
 CPMAddPackage(
         NAME imgui
         GITHUB_REPOSITORY ocornut/imgui
-        GIT_TAG 6982ce4
+        GIT_TAG v1.91.9b
         DOWNLOAD_ONLY
 )
 if (imgui_ADDED)
@@ -43,27 +43,13 @@ if (imgui_ADDED)
 endif ()
 
 # SDL
-CPMAddPackage("gh:libsdl-org/SDL#4c70aa3")
+CPMAddPackage("gh:libsdl-org/SDL#release-3.2.8")
 list(APPEND LIBS SDL3::SDL3)
 if (imgui_ADDED)
     target_link_libraries(imgui PRIVATE SDL3::SDL3)
 endif ()
 
-# SDL_image
-set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE) # Requires Perl and Nasm for libaom (AVIF image format)
-CPMAddPackage("gh:libsdl-org/SDL_image#bcc97c0")
-list(APPEND LIBS SDL3_image::SDL3_image)
-
-# flecs
-CPMAddPackage("gh:SanderMertens/flecs#befc214")
-list(APPEND LIBS flecs::flecs)
-
-# SQLite
-CPMAddPackage("gh:SRombauts/SQLiteCpp#643b153")
-list(APPEND LIBS SQLiteCpp)
-
-
 ## Executables
-add_executable(demo src/demo.cpp)
-target_compile_features(demo PRIVATE cxx_std_23)
-target_link_libraries(demo PRIVATE ${LIBS})
+add_executable(FixedPointSimplex3DNoise src/main.cpp)
+target_compile_features(FixedPointSimplex3DNoise PRIVATE cxx_std_23)
+target_link_libraries(FixedPointSimplex3DNoise PRIVATE ${LIBS})
