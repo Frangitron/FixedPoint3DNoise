@@ -4,13 +4,14 @@
 #include <cstdio>
 #include <SDL3/SDL.h>
 
-#include "Noise.hpp"
+// TODO move Noise to main.cpp
+#include "FixedPoint3DNoise.hpp"
 
 
 class NoiseFrame {
 public:
     NoiseFrame(SDL_Renderer* renderer, const int width, const int height)
-        : renderer_(renderer), width_(width), height_(height), texture_(nullptr), noiseFixed_(0, 16, 2) {
+        : renderer_(renderer), width_(width), height_(height), texture_(nullptr) {
 
         texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width_, height_);
         if (!texture_) {
@@ -22,18 +23,17 @@ public:
     void PixelAt(const int x, const int y, Uint32* pixel) {
         const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
 
-        int32_t noise = noiseFixed_.getValue(x, y, z);
+        int32_t noise = noise_.getValue(x, y, z);
 
-        auto r = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::Scale));
-        auto g = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::Scale));
-        auto b = static_cast<Uint8>((noise * 255 / FixedPointNoiseSampler::Scale));
+        auto r = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));
+        auto g = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));
+        auto b = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));
         Uint8 a = 255;
         *pixel = (r << 24) | (g << 16) | (b << 8) | a;
     }
 
-    void Update(int32_t min, int32_t max) {
-        noiseFixed_.setMin(min);
-        noiseFixed_.setMax(max);
+    void Update(const FixedPoint3DNoise::Params params) {
+        noise_.setParams(params);
 
         void* pixels = nullptr;
         int pitch = 0;
@@ -43,8 +43,8 @@ public:
                     // Cast to Uint32 pointer
                     Uint32* pixel_ptr = (Uint32*)((Uint8*)pixels + y * pitch) + x;
                     PixelAt(
-                        x * FixedPointNoiseSampler::Scale / width_,
-                        y * FixedPointNoiseSampler::Scale / height_,
+                        x * FixedPoint3DNoise::Scale / width_,
+                        y * FixedPoint3DNoise::Scale / height_,
                         pixel_ptr
                     );
                 }
@@ -55,8 +55,7 @@ public:
         }
     }
 
-    int32_t mmin() const { return noiseFixed_.getMin(); }
-    int32_t mmax() const { return noiseFixed_.getMax(); }
+    [[nodiscard]] FixedPoint3DNoise::ComputeInfo getComputeInfo() const { return noise_.getComputeInfo(); }
 
     [[nodiscard]] SDL_Texture* GetTexture() const {
         return texture_;
@@ -69,7 +68,7 @@ public:
     }
 
 private:
-    Noise noiseFixed_;
+    FixedPoint3DNoise noise_;
     SDL_Renderer* renderer_;
     int width_;
     int height_;

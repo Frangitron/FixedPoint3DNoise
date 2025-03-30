@@ -1,8 +1,10 @@
 #include <cstdio>
+
 #include <SDL3/SDL.h>
 #include <imgui.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_sdlrenderer3.h>
+#include "FixedPoint3DNoise.hpp"
 
 #include "NoiseFrame.h"
 
@@ -47,8 +49,7 @@ int main(int argc, char* argv[]) {
     bool running = true;
     SDL_Event event;
 
-    int32_t min = 0;
-    int32_t max = FixedPointNoiseSampler::Scale;
+    FixedPoint3DNoise::Params params = { 8, 1, 0, FixedPoint3DNoise::Scale };
 
     while (running) {
 
@@ -71,17 +72,15 @@ int main(int argc, char* argv[]) {
 
         int window_width, window_height;
         SDL_GetWindowSize(window, &window_width, &window_height);
-        noiseFrame.Update(min, max);
+        noiseFrame.Update(params);
         SDL_Texture* noiseTexture = noiseFrame.GetTexture();
 
         ImGui::Image(reinterpret_cast<ImTextureID>(noiseTexture), ImVec2(512, 512));
-        ImGui::SliderInt("Min", &min, 0, FixedPointNoiseSampler::Scale);
-        ImGui::SliderInt("Max", &max, 0, FixedPointNoiseSampler::Scale);
+        ImGui::SliderInt("Min", &params.min, 0, FixedPoint3DNoise::Scale);
+        ImGui::SliderInt("Max", &params.max, 0, FixedPoint3DNoise::Scale);
 
-        int32_t mmin = noiseFrame.mmin();
-        int32_t mmax = noiseFrame.mmax();
-
-        ImGui::Text("MMin: %d - MMax: %d", mmin, mmax);
+        FixedPoint3DNoise::ComputeInfo info = noiseFrame.getComputeInfo();
+        ImGui::Text("MMin: %d - MMax: %d", info.min, info.max);
 
         ImGui::End();
         ImGui::Render();

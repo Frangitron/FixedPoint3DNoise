@@ -1,11 +1,11 @@
-#ifndef FIRMWARE_REWRITE_NOISE_HPP
-#define FIRMWARE_REWRITE_NOISE_HPP
+#ifndef FIXED_POINT_3D_NOISE_HPP
+#define FIXED_POINT_3D_NOISE_HPP
 
 #include <cstdint>
 #include <array>
-#include <cstdio>
 
-class FixedPointNoiseSampler {
+
+class FixedPoint3DNoise {
 
 public:
 
@@ -15,10 +15,22 @@ public:
         int32_t z;
     } Vector3;
 
+    typedef struct {
+        int scale;
+        int octaves;
+        int32_t min;
+        int32_t max;
+    } Params;
+
+    typedef struct {
+        int32_t min;
+        int32_t max;
+    } ComputeInfo;
+
     // Fixed-point scaling factor to adjust precision.
     static constexpr int Scale = 1024;
 
-    explicit FixedPointNoiseSampler(uint32_t seed = 0) {
+    explicit FixedPoint3DNoise(uint32_t seed = 0) {
         // Initialize permutation array with a simple pseudo-random sequence.
         for (uint32_t i = 0; i < 256; ++i) {
             permutation[i] = i;
@@ -37,7 +49,61 @@ public:
         }
     }
 
-    int32_t dotGridGradient(const int32_t X, const int32_t Y, const int32_t Z, const int32_t x, const int32_t y, const int32_t z) const {
+    void setParams(Params params) {
+        scale = params.scale;
+        octaves = params.octaves;
+        min = params.min;
+        max = params.max;
+    }
+
+    [[nodiscard]] Params getParams() const {
+        return { scale, octaves, min, max };
+    }
+
+    [[nodiscard]] ComputeInfo getComputeInfo() const {
+        return computeInfo_;
+    }
+
+    int32_t getValue(int32_t x, int32_t y, int32_t z) {
+        int32_t noise = 0;
+        for (int i = 0; i < octaves; ++i) {
+            auto octave = static_cast<int32_t>(pow(2, i));
+
+            auto noiseSample = getRawValue(
+                scale * x * octave,
+                scale * y * octave,
+                scale * z
+            );
+            noise += noiseSample / octave;
+        }
+
+        // ensure [0 - Scale] values
+        noise = (noise + Scale) / 2;
+
+        if (noise <= min) {
+            return 0;
+        }
+        if (noise >= max) {
+            return Scale;
+        }
+
+        noise = (noise - min) *  Scale / (Scale - min);
+
+        if (noise < computeInfo_.min) { computeInfo_.min = noise; }
+        if (noise > computeInfo_.max) { computeInfo_.max = noise; }
+
+        return noise;
+    }
+
+private:
+    std::array<uint8_t, 512> permutation{};
+    int scale = 1;
+    int octaves = 1;
+    int min = 0;
+    int max = Scale;
+    ComputeInfo computeInfo_ = { 0, 0 };
+
+    [[nodiscard]] int32_t dotGridGradient(const int32_t X, const int32_t Y, const int32_t Z, const int32_t x, const int32_t y, const int32_t z) const {
         auto [gx, gy, gz] = randomGradient(X, Y, Z);
 
         int32_t dx = x - X;
@@ -49,11 +115,11 @@ public:
             static_cast<int64_t>(dy) * gy +
             static_cast<int64_t>(dz) * gz;
 
-        return static_cast<int32_t>(dot / Scale);
+        // TODO find out why 8
+        return static_cast<int32_t>(8 * dot / Scale);
     }
 
-    // Calculate 3D fixed-point noise value.
-    int32_t getValue(int32_t x, int32_t y, int32_t z) const {
+    [[nodiscard]] int32_t getRawValue(int32_t x, int32_t y, int32_t z) const {
         int32_t X0 = (x / Scale) * Scale;
         int32_t Y0 = (y / Scale) * Scale;
         int32_t Z0 = (z / Scale) * Scale;
@@ -98,7 +164,7 @@ public:
         return value;
     }
 
-    Vector3 randomGradient(const int32_t x, const int32_t y, const int32_t z) const {
+    [[nodiscard]] Vector3 randomGradient(const int32_t x, const int32_t y, const int32_t z) const {
         const int32_t ix = x / Scale;
         const int32_t iy = y / Scale;
         const int32_t iz = z / Scale;
@@ -142,65 +208,6 @@ public:
     static int32_t linearInterpolate(const int32_t a, const int32_t b, const int32_t w) {
         return a - (a * w / Scale) + (b * w / Scale);
     }
-
-private:
-    std::array<uint8_t, 512> permutation{};
 };
 
-
-class Noise {
-public:
-    Noise(uint32_t seed, int scale_, int octaves_, int min_ = 0, int max_ = FixedPointNoiseSampler::Scale):
-        sampler(seed), scale(scale_), octaves(octaves_), min(min_), max(max_) {}
-
-    void setMin(int32_t min_) { min = min_; }
-    void setMax(int32_t max_) { max = max_; }
-    void setScale(int32_t scale_) { scale = scale_; }
-    void setOctaves(int32_t octaves_) { octaves = octaves_; }
-
-    int32_t getValue(int32_t x, int32_t y, int32_t z) {
-        int32_t noise = 0;
-        for (int i = 0; i < octaves; ++i) {
-            auto octave = static_cast<int32_t>(pow(2, i));
-
-            auto noiseSample = sampler.getValue(
-                scale * x * octave,
-                scale * y * octave,
-                scale * z
-            );
-            noise += noiseSample / octave;
-        }
-
-        noise *= 8; // TODO this is not normal at all
-        noise = (noise + FixedPointNoiseSampler::Scale) / 2;
-
-        if (noise <= min) {
-            return 0;
-        }
-        if (noise >= max) {
-            return FixedPointNoiseSampler::Scale;
-        }
-
-        noise = (noise - min) *  FixedPointNoiseSampler::Scale / (FixedPointNoiseSampler::Scale - min);
-
-        if (noise < mmin) { mmin = noise; }
-        if (noise > mmax) { mmax = noise; }
-
-        return noise;
-    }
-
-    // Used to determine "8" weird factor that will be investigated later
-    int32_t getMin() const { return mmin; }
-    int32_t getMax() const { return mmax; }
-
-private:
-    int scale;
-    int octaves;
-    int min;
-    int max;
-    FixedPointNoiseSampler sampler;
-    int32_t mmax = 0;
-    int32_t mmin = 0;
-};
-
-#endif //FIRMWARE_REWRITE_NOISE_HPP
+#endif //FIXED_POINT_3D_NOISE_HPP
