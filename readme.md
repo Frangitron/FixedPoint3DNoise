@@ -1,6 +1,8 @@
 # Fixed Point 3D Noise
 
-Basic 3D implementation of Perlin Noise for fixed point microcontrollers 
+Basic 3D implementation of Perlin Noise for fixed point microcontrollers
+
+Archive reason: exists in [FastLED](https://github.com/FastLED/FastLED/blob/master/src/simplex.cpp)
 
 ![ImGui Demo](image.png)
 
