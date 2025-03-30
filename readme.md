@@ -31,6 +31,14 @@ int main(int argc, char* argv[]) {
 }
 ```
 
+## Performance on a Raspberry Pi Pico (RP2040)
+
+The lib is able to achieve around 30 fps for 1000 RGB LEDs on one core
+
+_todo: redo measurements with latest version of code_
+
+![Performance](performance.png)
+
 ## Resources
 
 Inspired and borrowed from
