@@ -19,11 +19,9 @@ public:
         }
     }
 
-    static void setPixelAt(const int x, const int y, Uint32* pPixel, FixedPoint3DNoise* pNoise) {
+    static void setPixelAt(const int32_t x, const int32_t y, Uint32* pPixel, FixedPoint3DNoise* pNoise) {
         const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
-
         int32_t noise = pNoise->getValue(x, y, z);
-
         auto r = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));
         auto g = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));
         auto b = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));

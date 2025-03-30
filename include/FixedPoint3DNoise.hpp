@@ -30,23 +30,8 @@ public:
     // Fixed-point scaling factor to adjust precision.
     static constexpr int Scale = 1024;
 
-    explicit FixedPoint3DNoise(uint32_t seed = 0) {
-        // Initialize permutation array with a simple pseudo-random sequence.
-        for (uint32_t i = 0; i < 256; ++i) {
-            permutation[i] = i;
-        }
-
-        // Shuffle the permutation using the provided seed.
-        for (uint32_t i = 255; i > 0; --i) {
-            uint32_t j = seed % (i + 1);
-            std::swap(permutation[i], permutation[j]);
-            seed = seed * 1103515245 + 12345;  // Simple LCG for new 'random' seed.
-        }
-
-        // Duplicate the permutation array to avoid overflow when accessing.
-        for (uint32_t i = 0; i < 256; ++i) {
-            permutation[256 + i] = permutation[i];
-        }
+    explicit FixedPoint3DNoise(uint32_t seed_ = 0) {
+        seed = seed_;
     }
 
     void setParams(Params params) {
@@ -97,11 +82,35 @@ public:
 
 private:
     std::array<uint8_t, 512> permutation{};
+    uint32_t seed = 0;
     int scale = 1;
     int octaves = 1;
-    int min = 0;
-    int max = Scale;
+    int32_t min = 0;
+    int32_t max = Scale;
     ComputeInfo computeInfo_ = { 0, 0 };
+    // Borrowed from FastNoiseLite
+    static constexpr int32_t PrimeX = 501125321;
+    static constexpr int32_t PrimeY = 1136930381;
+    static constexpr int32_t PrimeZ = 1720413743;
+    const int32_t Gradients3D[256] =
+    {
+        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+        0, 1, 1, 0,  0,-1, 1, 0,  0, 1,-1, 0,  0,-1,-1, 0,
+        1, 0, 1, 0, -1, 0, 1, 0,  1, 0,-1, 0, -1, 0,-1, 0,
+        1, 1, 0, 0, -1, 1, 0, 0,  1,-1, 0, 0, -1,-1, 0, 0,
+        1, 1, 0, 0,  0,-1, 1, 0, -1, 1, 0, 0,  0,-1,-1, 0
+    };
 
     [[nodiscard]] int32_t dotGridGradient(const int32_t X, const int32_t Y, const int32_t Z, const int32_t x, const int32_t y, const int32_t z) const {
         auto [gx, gy, gz] = randomGradient(X, Y, Z);
@@ -115,8 +124,7 @@ private:
             static_cast<int64_t>(dy) * gy +
             static_cast<int64_t>(dz) * gz;
 
-        // TODO find out why 8
-        return static_cast<int32_t>(8 * dot / Scale);
+        return static_cast<int32_t>(dot / Scale);
     }
 
     [[nodiscard]] int32_t getRawValue(int32_t x, int32_t y, int32_t z) const {
@@ -165,44 +173,26 @@ private:
     }
 
     [[nodiscard]] Vector3 randomGradient(const int32_t x, const int32_t y, const int32_t z) const {
-        const int32_t ix = x / Scale;
-        const int32_t iy = y / Scale;
-        const int32_t iz = z / Scale;
+        int32_t ix = x / Scale;
+        int32_t iy = y / Scale;
+        int32_t iz = z / Scale;
 
-        // Compute a pseudo-random seed from the input coordinates.
-        const uint32_t seed = permutation[(ix + permutation[(iy + permutation[iz & 255]) & 255]) & 255];
+        // Borrowed from FastNoiseLite
+        ix *= PrimeX;
+        iy *= PrimeY;
+        iz *= PrimeZ;
 
-        // Generate pseudo-random fixed-point components in [-FIXED_SCALE, FIXED_SCALE].
-        int32_t gx = static_cast<int32_t>((seed ^ 0xF45325) % (2 * Scale + 1)) - Scale;
-        int32_t gy = static_cast<int32_t>((seed ^ 0xA7463B) % (2 * Scale + 1)) - Scale;
-        int32_t gz = static_cast<int32_t>((seed ^ 0xC83D21) % (2 * Scale + 1)) - Scale;
+        uint32_t hash = seed ^ ix ^ iy ^ iz;
 
-        // Normalize the gradient vector to have a unit length in fixed-point precision.
-        if (const int32_t lengthSquared = gx * gx + gy * gy + gz * gz; lengthSquared > 0) {
-            const int32_t length = sqrt_i32(lengthSquared);
-            gx = Scale * gx / length;
-            gy = Scale * gy / length;
-            gz = Scale * gz / length;
-        }
+        hash *= 0x27d4eb2d;
+        hash ^= hash >> 15;
+        hash &= 127 << 1;
 
-        return { gx, gy, gz };
-    }
-
-    // Fixed-point integer square root function.
-    [[nodiscard]] static int32_t sqrt_i32(int32_t v) {
-        uint32_t b = 1<<30, q = 0, r = v;
-        while (b > r)
-            b >>= 2;
-        while( b > 0 ) {
-            const uint32_t t = q + b;
-            q >>= 1;
-            if( r >= t ) {
-                r -= t;
-                q += b;
-            }
-            b >>= 2;
-        }
-        return static_cast<int32_t>(q);
+        return {
+            Gradients3D[hash] * Scale,
+            Gradients3D[hash | 1] * Scale,
+            Gradients3D[hash | 2] * Scale
+        };
     }
 
     static int32_t linearInterpolate(const int32_t a, const int32_t b, const int32_t w) {
