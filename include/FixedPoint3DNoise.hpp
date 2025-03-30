@@ -52,7 +52,7 @@ public:
     int32_t getValue(int32_t x, int32_t y, int32_t z) {
         int32_t noise = 0;
         for (int i = 0; i < octaves; ++i) {
-            auto octave = static_cast<int32_t>(pow(2, i));
+            auto octave = 1 << i;
 
             auto noiseSample = getRawValue(
                 scale * x * octave,
