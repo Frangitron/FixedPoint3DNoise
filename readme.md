@@ -1,0 +1,38 @@
+# Fixed Point 3D Noise
+
+Basic 3D implementation of Perlin Noise for fixed point microcontrollers 
+
+![ImGui Demo](image.png)
+
+## Example
+
+```c++
+#include "FixedPoint3DNoise.hpp"
+
+int main(int argc, char* argv[]) {
+    // Init noise
+    FixedPoint3DNoise noise;
+
+    // Configure
+    FixedPoint3DNoise::Params params = noise.getParams();
+    params.scale = 4;
+    params.octaves = 4;
+    noise.setParams(params);
+    
+    // Compute a 255 cube of values [0 - 255]    
+    for (int i=0; i < 255; i++) {
+        for (int j=0; j < 255; j++) {
+            for (int k=0; k < 255; k++) {
+                int32_t value = noise.getValue(i, j, k);
+                value = value * 255 / FixedPoint3DNoise::Scale;
+            }
+        }  
+    }
+}
+```
+
+## Resources
+
+Inspired and borrowed from
+- https://github.com/Auburn/FastNoiseLite
+- https://www.youtube.com/watch?v=kCIaHqb60Cw

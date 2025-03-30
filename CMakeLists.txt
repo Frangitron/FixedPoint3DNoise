@@ -1,3 +1,4 @@
+# Borrowed from https://github.com/ilyas-taouaou/CodotakuCMakeRepo/blob/master/CMakeLists.txt
 cmake_minimum_required(VERSION 3.30)
 project(FixedPointSimplex3DNoise)
 
@@ -50,6 +51,7 @@ if (imgui_ADDED)
 endif ()
 
 ## Executables
+include_directories("include")
 add_executable(FixedPointSimplex3DNoise src/main.cpp)
 target_compile_features(FixedPointSimplex3DNoise PRIVATE cxx_std_23)
 target_link_libraries(FixedPointSimplex3DNoise PRIVATE ${LIBS})
