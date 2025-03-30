@@ -42,5 +42,7 @@ _todo: redo measurements with latest version of code_
 ## Resources
 
 Inspired and borrowed from
-- https://github.com/Auburn/FastNoiseLite
-- https://www.youtube.com/watch?v=kCIaHqb60Cw
+
+- [FastNoiseLite](https://github.com/Auburn/FastNoiseLite)
+- [Perlin Noise Youtube tutorial](https://www.youtube.com/watch?v=kCIaHqb60Cw)
+- SDL3 + ImGui demo CMake from [CodotakuCMakeRepo](https://github.com/ilyas-taouaou/CodotakuCMakeRepo/blob/master/CMakeLists.txt)
