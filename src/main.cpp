@@ -13,6 +13,7 @@ int main(int argc, char* argv[]) {
     // Init noise
     FixedPoint3DNoise noise;
     FixedPoint3DNoise::Params params = noise.getParams();
+    float gamma = 1.0f;
 
     // Initialize SDL3
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -75,7 +76,7 @@ int main(int argc, char* argv[]) {
         int window_width, window_height;
         SDL_GetWindowSize(window, &window_width, &window_height);
         noise.setParams(params);
-        noiseFrame.Update(&noise);
+        noiseFrame.Update(&noise, gamma);
         SDL_Texture* noiseTexture = noiseFrame.GetTexture();
 
         ImGui::Image(reinterpret_cast<ImTextureID>(noiseTexture), ImVec2(512, 512));
@@ -83,6 +84,7 @@ int main(int argc, char* argv[]) {
         ImGui::SliderInt("Octaves", &params.octaves, 1, 16);
         ImGui::SliderInt("Min", &params.min, 0, FixedPoint3DNoise::Scale);
         ImGui::SliderInt("Max", &params.max, 0, FixedPoint3DNoise::Scale);
+        ImGui::SliderFloat("Gamma", &gamma, 1, 4);
 
         FixedPoint3DNoise::ComputeInfo info = noise.getComputeInfo();
         ImGui::Text("MMin: %d - MMax: %d", info.min, info.max);

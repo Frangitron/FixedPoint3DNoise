@@ -72,7 +72,7 @@ public:
             return Scale;
         }
 
-        noise = (noise - min) *  Scale / (Scale - min);
+        noise = (noise - min) *  Scale / (max - min);
 
         if (noise < computeInfo_.min) { computeInfo_.min = noise; }
         if (noise > computeInfo_.max) { computeInfo_.max = noise; }
