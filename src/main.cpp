@@ -11,8 +11,8 @@
 
 int main(int argc, char* argv[]) {
     // Init noise
-    FixedPoint3DNoise noise;
-    FixedPoint3DNoise::Params params = noise.getParams();
+    Frangitron::FixedPoint3DNoise noise;
+    Frangitron::FixedPoint3DNoise::Params params = noise.getParams();
     float gamma = 1.0f;
 
     // Initialize SDL3
@@ -55,7 +55,6 @@ int main(int argc, char* argv[]) {
     SDL_Event event;
 
     while (running) {
-
         //
         // Poll events
         while (SDL_PollEvent(&event)) {
@@ -82,11 +81,11 @@ int main(int argc, char* argv[]) {
         ImGui::Image(reinterpret_cast<ImTextureID>(noiseTexture), ImVec2(512, 512));
         ImGui::SliderInt("Scale", &params.scale, 1, 16);
         ImGui::SliderInt("Octaves", &params.octaves, 1, 16);
-        ImGui::SliderInt("Min", &params.min, 0, FixedPoint3DNoise::Scale);
-        ImGui::SliderInt("Max", &params.max, 0, FixedPoint3DNoise::Scale);
+        ImGui::SliderInt("Min", &params.min, 0, Frangitron::FixedPoint3DNoise::Scale);
+        ImGui::SliderInt("Max", &params.max, 0, Frangitron::FixedPoint3DNoise::Scale);
         ImGui::SliderFloat("Gamma", &gamma, 1, 4);
 
-        FixedPoint3DNoise::ComputeInfo info = noise.getComputeInfo();
+        Frangitron::FixedPoint3DNoise::ComputeInfo info = noise.getComputeInfo();
         ImGui::Text("MMin: %d - MMax: %d", info.min, info.max);
 
         ImGui::End();

@@ -19,16 +19,16 @@ public:
         }
     }
 
-    static void setPixelAt(const int32_t x, const int32_t y, Uint32* pPixel, FixedPoint3DNoise* pNoise, const float gamma) {
-        const auto z = static_cast<int32_t>(SDL_GetTicks() / 10);
+    static void setPixelAt(const int32_t x, const int32_t y, Uint32* pPixel, Frangitron::FixedPoint3DNoise* pNoise, const float gamma) {
+        const auto z = -static_cast<int32_t>(SDL_GetTicks() / 10);
         int32_t noise = pNoise->getValue(x, y, z);
-        auto v = static_cast<Uint8>((noise * 255 / FixedPoint3DNoise::Scale));
+        auto v = static_cast<Uint8>((noise * 255 / Frangitron::FixedPoint3DNoise::Scale));
         v = static_cast<uint8_t>(powf(static_cast<float>(v) / 255.0f, gamma) * 255);
         Uint8 a = 255;
         *pPixel = (v << 24) | (v << 16) | (v << 8) | a;
     }
 
-    void Update(FixedPoint3DNoise* pNoise, const float gamma) {
+    void Update(Frangitron::FixedPoint3DNoise* pNoise, const float gamma) {
         void* pixels = nullptr;
         int pitch = 0;
         if (SDL_LockTexture(texture_, nullptr, &pixels, &pitch)) {
@@ -37,8 +37,8 @@ public:
                     // Cast to Uint32 pointer
                     Uint32* pPixel = (Uint32*)((Uint8*)pixels + y * pitch) + x;
                     setPixelAt(
-                        x * FixedPoint3DNoise::Scale / width_,
-                        y * FixedPoint3DNoise::Scale / height_,
+                        x * Frangitron::FixedPoint3DNoise::Scale / width_,
+                        y * Frangitron::FixedPoint3DNoise::Scale / height_,
                         pPixel,
                         pNoise,
                         gamma
